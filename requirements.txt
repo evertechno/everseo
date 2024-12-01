@@ -1,4 +1,4 @@
 streamlit
 nltk 
-readability-lxml
+lxml[html_clean]
 google.generativeai

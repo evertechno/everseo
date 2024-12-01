@@ -72,11 +72,15 @@ if st.button("Analyze Content"):
 st.sidebar.title("Industry-Specific Keyword Optimization")
 industry_selection = st.sidebar.selectbox("Select Industry", ["Tech", "Finance", "Healthcare", "Retail"])
 
+# Ensure model is loaded for keyword optimization
+model = genai.GenerativeModel('gemini-1.5-flash')  # Ensure model is loaded before use
+
 if industry_selection:
     st.sidebar.write(f"Optimizing for industry: {industry_selection}")
     # Generate AI-driven keyword optimization based on the selected industry
     industry_keywords_prompt = f"Suggest the most relevant keywords for the {industry_selection} industry to optimize pre-sales content."
     try:
+        # Generate keywords based on selected industry
         response_keywords = model.generate_content(industry_keywords_prompt)
         st.sidebar.write("Suggested Keywords:")
         st.sidebar.write(response_keywords.text)

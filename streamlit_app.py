@@ -2,29 +2,32 @@ import streamlit as st
 import google.generativeai as genai
 import re
 from collections import Counter
-from readability import Readability  # This should now work correctly after the install
+import textstat  # New import for readability scoring
+from nltk.corpus import stopwords
 
 # Configure the API key securely from Streamlit's secrets
 genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 
+# Download NLTK stopwords (only need to do once)
+import nltk
+nltk.download('stopwords')
+
 # Function to clean and analyze the content for SEO keywords and readability
 def analyze_content(content, target_keyword):
-    # Clean the content (remove non-alphanumeric characters)
+    # Clean the content (remove non-alphanumeric characters and make lowercase)
     content_clean = re.sub(r'\W+', ' ', content.lower())
     
-    # Count keyword occurrences
+    # Count word occurrences
     word_count = Counter(content_clean.split())
     
     # Get the frequency of the target keyword
     keyword_frequency = word_count.get(target_keyword.lower(), 0)
     
-    # Calculate readability score using the Readability library
-    readability_score = Readability(content).flesch_kincaid().score
+    # Calculate readability score using textstat (Flesch Reading Ease)
+    readability_score = textstat.flesch_reading_ease(content)
     
-    # Count total word count
+    # Calculate keyword density (percentage of target keyword in content)
     total_words = sum(word_count.values())
-    
-    # Generate keyword density
     keyword_density = (keyword_frequency / total_words) * 100 if total_words > 0 else 0
     
     # Provide suggestions for improvements
@@ -65,7 +68,7 @@ if st.button("Generate and Optimize"):
         st.write("SEO Analysis:")
         st.write(f"Keyword Frequency for '{target_keyword}': {keyword_frequency}")
         st.write(f"Keyword Density: {keyword_density:.2f}%")
-        st.write(f"Readability Score (Flesch-Kincaid): {readability_score:.2f}")
+        st.write(f"Readability Score (Flesch Reading Ease): {readability_score:.2f}")
         
         # Provide optimization suggestions
         if suggestions:

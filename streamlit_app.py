@@ -1,13 +1,10 @@
 import streamlit as st
 import google.generativeai as genai
-import openai
-from readability import Readability
-from nltk.corpus import stopwords
-from collections import Counter
 import re
+from collections import Counter
+from readability import Readability
 
 # Configure the API key securely from Streamlit's secrets
-# Make sure to add GOOGLE_API_KEY in secrets.toml (for local) or Streamlit Cloud Secrets
 genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 
 # Function to clean and analyze the content for SEO keywords and readability
@@ -50,9 +47,10 @@ content_input = st.text_area("Enter your content here:")
 # Button to generate response
 if st.button("Generate and Optimize"):
     try:
-        # Generate content using the generative AI model
+        # Generate content using the generative AI model from Google
         model = genai.GenerativeModel('gemini-1.5-flash')
-        response = model.generate_content(f"Write an SEO-friendly article about {target_keyword}")
+        prompt = f"Write an SEO-friendly article about {target_keyword}. Make sure to include the keyword naturally throughout the content."
+        response = model.generate_content(prompt)
         
         generated_content = response.text
         

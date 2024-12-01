@@ -1,151 +1,81 @@
 import streamlit as st
-import pandas as pd
-import math
-from pathlib import Path
+import google.generativeai as genai
+import openai
+from readability import Readability
+from nltk.corpus import stopwords
+from collections import Counter
+import re
 
-# Set the title and favicon that appear in the Browser's tab bar.
-st.set_page_config(
-    page_title='GDP dashboard',
-    page_icon=':earth_americas:', # This is an emoji shortcode. Could be a URL too.
-)
+# Configure the API key securely from Streamlit's secrets
+# Make sure to add GOOGLE_API_KEY in secrets.toml (for local) or Streamlit Cloud Secrets
+genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 
-# -----------------------------------------------------------------------------
-# Declare some useful functions.
+# Function to clean and analyze the content for SEO keywords and readability
+def analyze_content(content, target_keyword):
+    # Clean the content (remove non-alphanumeric characters)
+    content_clean = re.sub(r'\W+', ' ', content.lower())
+    
+    # Count keyword occurrences
+    word_count = Counter(content_clean.split())
+    
+    # Get the frequency of the target keyword
+    keyword_frequency = word_count.get(target_keyword.lower(), 0)
+    
+    # Calculate readability score using the Readability library
+    readability_score = Readability(content).flesch_kincaid().score
+    
+    # Count total word count
+    total_words = sum(word_count.values())
+    
+    # Generate keyword density
+    keyword_density = (keyword_frequency / total_words) * 100 if total_words > 0 else 0
+    
+    # Provide suggestions for improvements
+    suggestions = []
+    if keyword_density < 2:
+        suggestions.append(f"Increase the usage of the target keyword '{target_keyword}' to improve keyword density.")
+    if readability_score < 60:
+        suggestions.append("The content may be hard to read. Consider simplifying the language.")
+    
+    return keyword_frequency, keyword_density, readability_score, suggestions
 
-@st.cache_data
-def get_gdp_data():
-    """Grab GDP data from a CSV file.
+# Streamlit App UI
+st.title("Ever AI - Content Optimization Tool")
+st.write("Optimize your content using AI and SEO analysis.")
 
-    This uses caching to avoid having to read the file every time. If we were
-    reading from an HTTP endpoint instead of a file, it's a good idea to set
-    a maximum age to the cache with the TTL argument: @st.cache_data(ttl='1d')
-    """
+# Input for the target keyword and content
+target_keyword = st.text_input("Enter your target keyword:", "AI content optimization")
+content_input = st.text_area("Enter your content here:")
 
-    # Instead of a CSV on disk, you could read from an HTTP endpoint here too.
-    DATA_FILENAME = Path(__file__).parent/'data/gdp_data.csv'
-    raw_gdp_df = pd.read_csv(DATA_FILENAME)
-
-    MIN_YEAR = 1960
-    MAX_YEAR = 2022
-
-    # The data above has columns like:
-    # - Country Name
-    # - Country Code
-    # - [Stuff I don't care about]
-    # - GDP for 1960
-    # - GDP for 1961
-    # - GDP for 1962
-    # - ...
-    # - GDP for 2022
-    #
-    # ...but I want this instead:
-    # - Country Name
-    # - Country Code
-    # - Year
-    # - GDP
-    #
-    # So let's pivot all those year-columns into two: Year and GDP
-    gdp_df = raw_gdp_df.melt(
-        ['Country Code'],
-        [str(x) for x in range(MIN_YEAR, MAX_YEAR + 1)],
-        'Year',
-        'GDP',
-    )
-
-    # Convert years from string to integers
-    gdp_df['Year'] = pd.to_numeric(gdp_df['Year'])
-
-    return gdp_df
-
-gdp_df = get_gdp_data()
-
-# -----------------------------------------------------------------------------
-# Draw the actual page
-
-# Set the title that appears at the top of the page.
-'''
-# :earth_americas: GDP dashboard
-
-Browse GDP data from the [World Bank Open Data](https://data.worldbank.org/) website. As you'll
-notice, the data only goes to 2022 right now, and datapoints for certain years are often missing.
-But it's otherwise a great (and did I mention _free_?) source of data.
-'''
-
-# Add some spacing
-''
-''
-
-min_value = gdp_df['Year'].min()
-max_value = gdp_df['Year'].max()
-
-from_year, to_year = st.slider(
-    'Which years are you interested in?',
-    min_value=min_value,
-    max_value=max_value,
-    value=[min_value, max_value])
-
-countries = gdp_df['Country Code'].unique()
-
-if not len(countries):
-    st.warning("Select at least one country")
-
-selected_countries = st.multiselect(
-    'Which countries would you like to view?',
-    countries,
-    ['DEU', 'FRA', 'GBR', 'BRA', 'MEX', 'JPN'])
-
-''
-''
-''
-
-# Filter the data
-filtered_gdp_df = gdp_df[
-    (gdp_df['Country Code'].isin(selected_countries))
-    & (gdp_df['Year'] <= to_year)
-    & (from_year <= gdp_df['Year'])
-]
-
-st.header('GDP over time', divider='gray')
-
-''
-
-st.line_chart(
-    filtered_gdp_df,
-    x='Year',
-    y='GDP',
-    color='Country Code',
-)
-
-''
-''
-
-
-first_year = gdp_df[gdp_df['Year'] == from_year]
-last_year = gdp_df[gdp_df['Year'] == to_year]
-
-st.header(f'GDP in {to_year}', divider='gray')
-
-''
-
-cols = st.columns(4)
-
-for i, country in enumerate(selected_countries):
-    col = cols[i % len(cols)]
-
-    with col:
-        first_gdp = first_year[first_year['Country Code'] == country]['GDP'].iat[0] / 1000000000
-        last_gdp = last_year[last_year['Country Code'] == country]['GDP'].iat[0] / 1000000000
-
-        if math.isnan(first_gdp):
-            growth = 'n/a'
-            delta_color = 'off'
+# Button to generate response
+if st.button("Generate and Optimize"):
+    try:
+        # Generate content using the generative AI model
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        response = model.generate_content(f"Write an SEO-friendly article about {target_keyword}")
+        
+        generated_content = response.text
+        
+        # Display the generated content
+        st.write("Generated Content:")
+        st.write(generated_content)
+        
+        # Analyze the generated content for SEO
+        keyword_frequency, keyword_density, readability_score, suggestions = analyze_content(generated_content, target_keyword)
+        
+        # Display SEO analysis
+        st.write("SEO Analysis:")
+        st.write(f"Keyword Frequency for '{target_keyword}': {keyword_frequency}")
+        st.write(f"Keyword Density: {keyword_density:.2f}%")
+        st.write(f"Readability Score (Flesch-Kincaid): {readability_score:.2f}")
+        
+        # Provide optimization suggestions
+        if suggestions:
+            st.write("Suggestions to Improve SEO and Readability:")
+            for suggestion in suggestions:
+                st.write(f"- {suggestion}")
         else:
-            growth = f'{last_gdp / first_gdp:,.2f}x'
-            delta_color = 'normal'
-
-        st.metric(
-            label=f'{country} GDP',
-            value=f'{last_gdp:,.0f}B',
-            delta=growth,
-            delta_color=delta_color
-        )
+            st.write("Your content looks great! No further optimizations needed.")
+    
+    except Exception as e:
+        st.error(f"Error: {e}")

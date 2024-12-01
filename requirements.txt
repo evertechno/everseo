@@ -2,3 +2,6 @@ streamlit
 nltk 
 textstat 
 google.generativeai
+PyPDF2
+python-docx
+python-pptx

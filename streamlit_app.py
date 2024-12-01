@@ -2,6 +2,7 @@ import streamlit as st
 import google.generativeai as genai
 import os
 from io import StringIO
+import PyPDF2
 
 # Configure the API key securely from Streamlit's secrets
 # Ensure that GOOGLE_API_KEY is added in secrets.toml (for local) or Streamlit Cloud Secrets

@@ -2,7 +2,7 @@ import streamlit as st
 import google.generativeai as genai
 import re
 from collections import Counter
-from readability import Readability  # Correct import
+from readability import Readability  # This should now work correctly after the install
 
 # Configure the API key securely from Streamlit's secrets
 genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
